@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Article Classifier</title>
+    <style>
+        body {
+            width: 400px;
+            padding: 15px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 18px;
+            margin: 0 0 5px 0;
+            color: #333;
+        }
+        
+        .subtitle {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .config-section {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+        }
+        
+        label {
+            display: block;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 12px;
+        }
+        
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+        }
+        
+        .status.loading {
+            display: block;
+            background: #2196F3;
+            color: white;
+        }
+        
+        .status.success {
+            display: block;
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .status.error {
+            display: block;
+            background: #f44336;
+            color: white;
+        }
+        
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+        }
+        
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 14px;
+            color: #333;
+        }
+        
+        .result-category {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #4CAF50;
+            color: white;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .result-summary {
+            font-size: 12px;
+            line-height: 1.5;
+            color: #555;
+            margin-top: 10px;
+        }
+        
+        .confidence {
+            font-size: 11px;
+            color: #666;
+            margin-left: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>📰 Article Classifier</h1>
+        <div class="subtitle">Classify & Summarize Articles</div>
+    </div>
+    
+    <div class="config-section">
+        <label for="apiUrl">API Server URL:</label>
+        <input type="text" id="apiUrl" placeholder="http://localhost:5000" value="http://localhost:5000">
+    </div>
+    
+    <button id="analyzeBtn">Analyze Current Page</button>
+    
+    <div id="status" class="status"></div>
+    
+    <div id="result" class="result">
+        <div class="result-title" id="resultTitle"></div>
+        <div>
+            <span class="result-category" id="resultCategory"></span>
+            <span class="confidence" id="resultConfidence"></span>
+        </div>
+        <div class="result-summary" id="resultSummary"></div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
