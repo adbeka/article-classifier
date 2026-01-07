@@ -4,8 +4,7 @@
   "version": "1.0.0",
   "description": "Classify news articles by topic and generate summaries using NLP",
   "permissions": [
-    "activeTab",
-    "scripting"
+    "activeTab"
   ],
   "host_permissions": [
     "http://localhost:5000/*",

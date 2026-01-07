@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
         } catch (error) {
             console.error('Error:', error);
-            showStatus('Failed to connect to API server. Make sure it\'s running.', 'error');
+            showStatus('Failed to connect to API server. Make sure it is running.', 'error');
         } finally {
             analyzeBtn.disabled = false;
         }

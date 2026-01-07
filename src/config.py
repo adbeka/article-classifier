@@ -32,6 +32,9 @@ class Config:
     # API Configuration
     MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', 10))
     
+    # Summarizer Configuration
+    MAX_SUMMARIZER_INPUT_LENGTH = int(os.getenv('MAX_SUMMARIZER_INPUT_LENGTH', 1024))
+    
     # Classification Labels
     CLASSIFICATION_LABELS = [
         "politics",

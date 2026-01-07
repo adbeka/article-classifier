@@ -3,6 +3,7 @@ Article summarizer module using NLP for text summarization.
 """
 from transformers import pipeline
 from typing import Dict
+from src.config import Config
 
 
 class ArticleSummarizer:
@@ -30,7 +31,7 @@ class ArticleSummarizer:
             Summarized text
         """
         # Split long text into chunks if needed
-        max_input_length = 1024
+        max_input_length = Config.MAX_SUMMARIZER_INPUT_LENGTH
         words = text.split()
         
         if len(words) <= max_input_length:
@@ -43,12 +44,15 @@ class ArticleSummarizer:
         
         # Limit to first 3 chunks to avoid excessive processing
         chunks_to_process = chunks[:3]
-        if not chunks_to_process:
+        if not chunks_to_process or len(chunks_to_process) == 0:
             return ""
         
         summaries = []
+        chunk_max_length = max(max_length // len(chunks_to_process), 1)
+        chunk_min_length = max(min_length // len(chunks_to_process), 1)
+        
         for chunk in chunks_to_process:
-            summary = self.summarizer(chunk, max_length=max_length//len(chunks_to_process), min_length=min_length//len(chunks_to_process), do_sample=False)
+            summary = self.summarizer(chunk, max_length=chunk_max_length, min_length=chunk_min_length, do_sample=False)
             summaries.append(summary[0]['summary_text'])
         
         return ' '.join(summaries)
