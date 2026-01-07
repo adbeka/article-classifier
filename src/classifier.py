@@ -3,6 +3,7 @@ Article classifier module using NLP for topic classification.
 """
 from transformers import pipeline
 from typing import List, Dict
+from src.config import Config
 
 
 class ArticleClassifier:
@@ -16,18 +17,7 @@ class ArticleClassifier:
             model_name: Name of the Hugging Face model to use
         """
         self.classifier = pipeline("zero-shot-classification", model=model_name)
-        self.default_labels = [
-            "politics",
-            "technology",
-            "business",
-            "entertainment",
-            "sports",
-            "science",
-            "health",
-            "environment",
-            "education",
-            "world news"
-        ]
+        self.default_labels = Config.CLASSIFICATION_LABELS
     
     def classify(self, text: str, labels: List[str] = None) -> Dict[str, any]:
         """
@@ -44,7 +34,6 @@ class ArticleClassifier:
             labels = self.default_labels
         
         # Truncate text to avoid token limits
-        from src.config import Config
         text_truncated = ' '.join(text.split()[:Config.MAX_CLASSIFICATION_WORDS])
         
         result = self.classifier(text_truncated, labels, multi_label=True)
