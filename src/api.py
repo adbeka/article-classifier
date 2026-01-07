@@ -106,8 +106,8 @@ def process_batch():
         if not isinstance(urls, list):
             return jsonify({'error': 'URLs must be an array'}), 400
         
-        if len(urls) > 10:
-            return jsonify({'error': 'Maximum 10 URLs allowed per batch'}), 400
+        if len(urls) > Config.MAX_BATCH_SIZE:
+            return jsonify({'error': f'Maximum {Config.MAX_BATCH_SIZE} URLs allowed per batch'}), 400
         
         # Process the articles
         results = processor.process_urls(urls)

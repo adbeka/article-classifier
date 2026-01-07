@@ -44,8 +44,8 @@ class ArticleClassifier:
             labels = self.default_labels
         
         # Truncate text to avoid token limits
-        max_length = 500
-        text_truncated = ' '.join(text.split()[:max_length])
+        from src.config import Config
+        text_truncated = ' '.join(text.split()[:Config.MAX_CLASSIFICATION_WORDS])
         
         result = self.classifier(text_truncated, labels, multi_label=True)
         

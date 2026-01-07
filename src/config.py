@@ -26,6 +26,12 @@ class Config:
     SUMMARY_MAX_LENGTH = int(os.getenv('SUMMARY_MAX_LENGTH', 130))
     SUMMARY_MIN_LENGTH = int(os.getenv('SUMMARY_MIN_LENGTH', 30))
     
+    # Classifier Configuration
+    MAX_CLASSIFICATION_WORDS = int(os.getenv('MAX_CLASSIFICATION_WORDS', 500))
+    
+    # API Configuration
+    MAX_BATCH_SIZE = int(os.getenv('MAX_BATCH_SIZE', 10))
+    
     # Classification Labels
     CLASSIFICATION_LABELS = [
         "politics",

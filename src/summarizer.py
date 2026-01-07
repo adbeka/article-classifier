@@ -41,9 +41,14 @@ class ArticleSummarizer:
         chunk_size = max_input_length
         chunks = [' '.join(words[i:i+chunk_size]) for i in range(0, len(words), chunk_size)]
         
+        # Limit to first 3 chunks to avoid excessive processing
+        chunks_to_process = chunks[:3]
+        if not chunks_to_process:
+            return ""
+        
         summaries = []
-        for chunk in chunks[:3]:  # Limit to first 3 chunks to avoid excessive processing
-            summary = self.summarizer(chunk, max_length=max_length//len(chunks[:3]), min_length=min_length//len(chunks[:3]), do_sample=False)
+        for chunk in chunks_to_process:
+            summary = self.summarizer(chunk, max_length=max_length//len(chunks_to_process), min_length=min_length//len(chunks_to_process), do_sample=False)
             summaries.append(summary[0]['summary_text'])
         
         return ' '.join(summaries)
