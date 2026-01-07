@@ -9,12 +9,12 @@ from src.summarizer import ArticleSummarizer
 class TestArticleSummarizer(unittest.TestCase):
     """Test cases for ArticleSummarizer class."""
     
-    @patch('src.summarizer.pipeline')
-    def setUp(self, mock_pipeline):
+    def setUp(self):
         """Set up test fixtures."""
-        self.mock_summarizer = Mock()
-        mock_pipeline.return_value = self.mock_summarizer
-        self.summarizer = ArticleSummarizer()
+        with patch('src.summarizer.pipeline') as mock_pipeline:
+            self.mock_summarizer = Mock()
+            mock_pipeline.return_value = self.mock_summarizer
+            self.summarizer = ArticleSummarizer()
     
     def test_summarizer_initialization(self):
         """Test that summarizer initializes correctly."""

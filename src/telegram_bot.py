@@ -91,7 +91,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"📰 *Article Analysis*\n\n"
             f"*Title:* {title}\n\n"
             f"*Category:* {category.upper()}\n"
-            f"*Confidence:* {confidence:.1%}\n\n"
+            f"*Confidence:* {confidence*100:.1f}%\n\n"
             f"*Summary:*\n{summary}\n\n"
             f"*Source:* {message_text}"
         )

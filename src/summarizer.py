@@ -44,7 +44,7 @@ class ArticleSummarizer:
         
         # Limit to first 3 chunks to avoid excessive processing
         chunks_to_process = chunks[:3]
-        if not chunks_to_process or len(chunks_to_process) == 0:
+        if not chunks_to_process:
             return ""
         
         summaries = []
