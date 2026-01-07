@@ -1,8 +1,6 @@
 """
 Article scraper module for extracting content from news URLs.
 """
-import requests
-from bs4 import BeautifulSoup
 from newspaper import Article
 from typing import Dict, Optional
 
