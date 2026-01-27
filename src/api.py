@@ -23,10 +23,14 @@ processor = ArticleProcessor()
 def index():
     """API root endpoint."""
     return jsonify({
-        'message': 'Article Classifier & Summarizer API',
-        'version': '1.0',
+        'message': 'Article Classifier & Summarizer API (Enhanced Edition)',
+        'version': '2.0',
         'endpoints': {
             '/api/process': 'POST - Process a single URL',
+            '/api/batch': 'POST - Process multiple URLs',
+            '/api/export': 'POST - Export article to file',
+            '/api/cached': 'GET - Get cached articles',
+            '/api/statistics': 'GET - Get processing statistics',
             '/api/health': 'GET - Health check'
         }
     })
@@ -119,9 +123,88 @@ def process_batch():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/export', methods=['POST'])
+def export_article():
+    """
+    Export a processed article to a file.
+    
+    Expected JSON body:
+    {
+        "url": "https://example.com/article",
+        "format": "json|markdown|html|csv"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url']
+        format_type = data.get('format', 'json')
+        
+        if format_type not in ['json', 'markdown', 'html', 'csv']:
+            return jsonify({'error': 'Invalid format. Use: json, markdown, html, or csv'}), 400
+        
+        # Process the article
+        result = processor.process_url(url)
+        
+        if 'error' in result:
+            return jsonify(result), 500
+        
+        # Export the article
+        filepath = processor.export_article(result, format=format_type)
+        
+        return jsonify({
+            'message': 'Article exported successfully',
+            'filepath': filepath,
+            'format': format_type
+        })
+        
+    except Exception as e:
+        logger.error(f"Error exporting article: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cached', methods=['GET'])
+def get_cached_articles():
+    """
+    Get cached articles from database.
+    
+    Query parameters:
+    - category: Filter by category (optional)
+    - limit: Number of results (default: 10, max: 50)
+    """
+    try:
+        category = request.args.get('category')
+        limit = min(int(request.args.get('limit', 10)), 50)
+        
+        articles = processor.get_cached_articles(category=category, limit=limit)
+        
+        return jsonify({
+            'count': len(articles),
+            'articles': articles
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching cached articles: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/statistics', methods=['GET'])
+def get_statistics():
+    """Get processing statistics."""
+    try:
+        stats = processor.get_statistics()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error fetching statistics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 def main():
     """Start the Flask API server."""
-    print(f"Starting API server on {Config.FLASK_HOST}:{Config.FLASK_PORT}")
+    print(f"Starting Enhanced API server on {Config.FLASK_HOST}:{Config.FLASK_PORT}")
     app.run(
         host=Config.FLASK_HOST,
         port=Config.FLASK_PORT,
