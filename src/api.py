@@ -23,10 +23,17 @@ processor = ArticleProcessor()
 def index():
     """API root endpoint."""
     return jsonify({
-        'message': 'Article Classifier & Summarizer API',
-        'version': '1.0',
+        'message': 'Article Classifier & Summarizer API (Enhanced Edition)',
+        'version': '3.0',
         'endpoints': {
             '/api/process': 'POST - Process a single URL',
+            '/api/batch': 'POST - Process multiple URLs',
+            '/api/export': 'POST - Export article to file',
+            '/api/cached': 'GET - Get cached articles',
+            '/api/statistics': 'GET - Get processing statistics',
+            '/api/similar': 'POST - Find similar articles',
+            '/api/duplicates': 'GET - Find duplicate articles',
+            '/api/similarity-report': 'POST - Get similarity report',
             '/api/health': 'GET - Health check'
         }
     })
@@ -119,9 +126,231 @@ def process_batch():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/export', methods=['POST'])
+def export_article():
+    """
+    Export a processed article to a file.
+    
+    Expected JSON body:
+    {
+        "url": "https://example.com/article",
+        "format": "json|markdown|html|csv"
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url']
+        format_type = data.get('format', 'json')
+        
+        if format_type not in ['json', 'markdown', 'html', 'csv']:
+            return jsonify({'error': 'Invalid format. Use: json, markdown, html, or csv'}), 400
+        
+        # Process the article
+        result = processor.process_url(url)
+        
+        if 'error' in result:
+            return jsonify(result), 500
+        
+        # Export the article
+        filepath = processor.export_article(result, format=format_type)
+        
+        return jsonify({
+            'message': 'Article exported successfully',
+            'filepath': filepath,
+            'format': format_type
+        })
+        
+    except Exception as e:
+        logger.error(f"Error exporting article: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/cached', methods=['GET'])
+def get_cached_articles():
+    """
+    Get cached articles from database.
+    
+    Query parameters:
+    - category: Filter by category (optional)
+    - limit: Number of results (default: 10, max: 50)
+    """
+    try:
+        category = request.args.get('category')
+        limit = min(int(request.args.get('limit', 10)), 50)
+        
+        articles = processor.get_cached_articles(category=category, limit=limit)
+        
+        return jsonify({
+            'count': len(articles),
+            'articles': articles
+        })
+        
+    except Exception as e:
+        logger.error(f"Error fetching cached articles: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/statistics', methods=['GET'])
+def get_statistics():
+    """Get processing statistics."""
+    try:
+        stats = processor.get_statistics()
+        return jsonify(stats)
+    except Exception as e:
+        logger.error(f"Error fetching statistics: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/similar', methods=['POST'])
+def find_similar():
+    """
+    Find similar articles to a given URL.
+    
+    Expected JSON body:
+    {
+        "url": "https://example.com/article",
+        "top_k": 5,  # optional, default 5
+        "min_similarity": 0.5  # optional, default 0.5
+    }
+    
+    Returns:
+    {
+        "query_article": {...},
+        "similar_articles": [
+            {
+                "article": {...},
+                "similarity_score": 0.85
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url']
+        top_k = data.get('top_k', 5)
+        min_similarity = data.get('min_similarity', 0.5)
+        
+        # Find similar articles
+        similar = processor.find_similar_by_url(url, top_k=top_k, min_similarity=min_similarity)
+        
+        # Get the query article
+        query_article = processor.process_url(url)
+        
+        return jsonify({
+            'query_article': {
+                'title': query_article.get('title'),
+                'url': query_article.get('url'),
+                'category': query_article.get('classification', {}).get('top_label')
+            },
+            'similar_count': len(similar),
+            'similar_articles': [
+                {
+                    'title': s['article'].get('title'),
+                    'url': s['article'].get('url'),
+                    'category': s['article'].get('classification', {}).get('top_label'),
+                    'summary': s['article'].get('summary', '')[:200] + '...',
+                    'similarity_score': s['similarity_score']
+                }
+                for s in similar
+            ]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error finding similar articles: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/duplicates', methods=['GET'])
+def find_duplicates():
+    """
+    Find duplicate articles in the database.
+    
+    Query parameters:
+    - threshold: Similarity threshold (default: 0.9)
+    
+    Returns:
+    {
+        "duplicates": [
+            {
+                "article1": {...},
+                "article2": {...},
+                "similarity": 0.95
+            },
+            ...
+        ]
+    }
+    """
+    try:
+        threshold = float(request.args.get('threshold', 0.9))
+        
+        duplicates = processor.find_all_duplicates(threshold=threshold)
+        
+        return jsonify({
+            'count': len(duplicates),
+            'duplicates': duplicates
+        })
+        
+    except Exception as e:
+        logger.error(f"Error finding duplicates: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/similarity-report', methods=['POST'])
+def similarity_report():
+    """
+    Get comprehensive similarity report for an article.
+    
+    Expected JSON body:
+    {
+        "url": "https://example.com/article"
+    }
+    
+    Returns comprehensive similarity analysis including duplicates,
+    similar articles, and similarity statistics.
+    """
+    try:
+        data = request.get_json()
+        
+        if not data or 'url' not in data:
+            return jsonify({'error': 'URL is required'}), 400
+        
+        url = data['url']
+        
+        # Process the article
+        article = processor.process_url(url)
+        
+        if 'error' in article:
+            return jsonify(article), 500
+        
+        # Get similarity report
+        report = processor.get_article_similarity_report(article)
+        
+        return jsonify({
+            'article': {
+                'title': article.get('title'),
+                'url': article.get('url'),
+                'category': article.get('classification', {}).get('top_label')
+            },
+            'similarity_analysis': report
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating similarity report: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+
 def main():
     """Start the Flask API server."""
-    print(f"Starting API server on {Config.FLASK_HOST}:{Config.FLASK_PORT}")
+    print(f"Starting Enhanced API server on {Config.FLASK_HOST}:{Config.FLASK_PORT}")
     app.run(
         host=Config.FLASK_HOST,
         port=Config.FLASK_PORT,

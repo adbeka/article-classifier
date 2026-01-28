@@ -21,14 +21,23 @@ processor = ArticleProcessor()
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Send a message when the command /start is issued."""
     welcome_message = (
-        "Welcome to Article Classifier & Summarizer Bot! 🤖\n\n"
+        "Welcome to Article Classifier & Summarizer Bot! 🤖✨\n\n"
         "Send me a news article URL and I will:\n"
-        "• Scrape the article content\n"
-        "• Classify it by topic\n"
-        "• Generate a summary\n\n"
+        "• 🔍 Scrape the article content\n"
+        "• 🏷️ Classify it by topic\n"
+        "• 📝 Generate a summary\n"
+        "• 😊 Analyze sentiment\n"
+        "• 🔑 Extract keywords\n"
+        "• ⏱️ Calculate reading time\n"
+        "• ⭐ Assess quality\n"
+        "• 🔗 Find similar articles\n\n"
         "Commands:\n"
         "/start - Show this message\n"
-        "/help - Show help information\n\n"
+        "/help - Show help information\n"
+        "/stats - Show statistics\n"
+        "/cached - View recent cached articles\n"
+        "/similar <url> - Find similar articles\n"
+        "/duplicates - Find duplicate articles\n\n"
         "Just paste a URL to get started!"
     )
     await update.message.reply_text(welcome_message)
@@ -71,7 +80,7 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     # Send processing message
-    processing_msg = await update.message.reply_text("🔄 Processing article...")
+    processing_msg = await update.message.reply_text("🔄 Processing article with advanced analysis...")
     
     try:
         # Process the URL
@@ -81,26 +90,189 @@ async def process_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await processing_msg.edit_text(f"❌ Error: {result['error']}")
             return
         
-        # Format the response
+        # Format the response with enhanced features
         category = result['classification']['top_label']
         confidence = result['classification']['top_score']
         title = result.get('title', 'N/A')
         summary = result.get('summary', 'N/A')
         
-        response = (
-            f"📰 *Article Analysis*\n\n"
-            f"*Title:* {title}\n\n"
-            f"*Category:* {category.upper()}\n"
-            f"*Confidence:* {confidence * 100:.1f}%\n\n"
-            f"*Summary:*\n{summary}\n\n"
-            f"*Source:* {message_text}"
-        )
+        response = f"📰 *Article Analysis*\n\n*Title:* {title}\n\n"
+        response += f"*Category:* {category.upper()}\n*Confidence:* {confidence * 100:.1f}%\n\n"
+        
+        # Add sentiment analysis
+        if 'sentiment_analysis' in result:
+            sentiment = result['sentiment_analysis']['sentiment']
+            emoji_map = {'POSITIVE': '😊', 'NEGATIVE': '😞', 'NEUTRAL': '😐'}
+            emoji = emoji_map.get(sentiment['label'], '🤔')
+            response += f"{emoji} *Sentiment:* {sentiment['label']} ({sentiment['score'] * 100:.1f}%)\n"
+            
+            # Top emotions
+            emotions = result['sentiment_analysis'].get('emotions', [])
+            if emotions:
+                top_emotions = ', '.join([f"{e['label']}" for e in emotions[:3]])
+                response += f"*Emotions:* {top_emotions}\n"
+        
+        # Add metadata
+        if 'metadata_analysis' in result:
+            metadata = result['metadata_analysis']
+            reading_time = metadata['reading_time']
+            quality = metadata['quality_score']
+            
+            response += f"\n⏱️ *Reading Time:* {reading_time['formatted']}\n"
+            response += f"📊 *Word Count:* {reading_time['word_count']}\n"
+            response += f"⭐ *Quality:* {quality['score']}/100 ({quality['grade']})\n"
+        
+        # Add keywords
+        if 'keyword_analysis' in result:
+            keywords = result['keyword_analysis']['keywords'][:5]
+            keyword_list = ', '.join([kw['word'] for kw in keywords])
+            response += f"\n🔑 *Keywords:* {keyword_list}\n"
+            
+            # Named entities
+            entities = result['keyword_analysis']['entities'][:5]
+            if entities:
+                entity_list = ', '.join([f"{e['text']} ({e['type']})" for e in entities])
+                response += f"🏷️ *Entities:* {entity_list}\n"
+        
+        response += f"\n*Summary:*\n{summary}\n\n"
+        response += f"*Source:* {message_text}"
         
         await processing_msg.edit_text(response, parse_mode='Markdown', disable_web_page_preview=True)
         
     except Exception as e:
         logger.error(f"Error processing article: {str(e)}")
         await processing_msg.edit_text(f"❌ An error occurred: {str(e)}")
+
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show database statistics."""
+    try:
+        stats = processor.get_statistics()
+        
+        if not stats:
+            await update.message.reply_text("No statistics available.")
+            return
+        
+        response = "📊 *Statistics*\n\n"
+        response += f"Total Articles: {stats['total_articles']}\n\n"
+        
+        if stats.get('category_distribution'):
+            response += "*Category Distribution:*\n"
+            for category, count in sorted(stats['category_distribution'].items(), key=lambda x: x[1], reverse=True):
+                response += f"• {category}: {count}\n"
+        
+        await update.message.reply_text(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error getting statistics: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Show recently cached articles."""
+    try:
+        articles = processor.get_cached_articles(limit=5)
+        
+        if not articles:
+            await update.message.reply_text("No cached articles found.")
+            return
+        
+        response = "📚 *Recent Cached Articles*\n\n"
+        
+        for i, article in enumerate(articles, 1):
+            title = article.get('title', 'Untitled')[:50]
+            category = article.get('classification', {}).get('top_label', 'N/A')
+            response += f"{i}. *{title}*\n   Category: {category}\n\n"
+        
+        await update.message.reply_text(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error getting cached articles: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+async def similar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Find similar articles to a given URL."""
+    try:
+        # Check if URL is provided
+        if not context.args:
+            await update.message.reply_text(
+                "Please provide a URL.\nUsage: /similar <url>"
+            )
+            return
+        
+        url = context.args[0]
+        
+        if not (url.startswith('http://') or url.startswith('https://')):
+            await update.message.reply_text("Please provide a valid URL starting with http:// or https://")
+            return
+        
+        processing_msg = await update.message.reply_text("🔍 Finding similar articles...")
+        
+        # Find similar articles
+        similar = processor.find_similar_by_url(url, top_k=5, min_similarity=0.5)
+        
+        if not similar:
+            await processing_msg.edit_text("No similar articles found in the database.")
+            return
+        
+        # Get the query article info
+        article = processor.process_url(url)
+        
+        response = f"🔗 *Similar Articles*\n\n"
+        response += f"*Query:* {article.get('title', 'N/A')[:60]}\n\n"
+        response += f"Found {len(similar)} similar article(s):\n\n"
+        
+        for i, item in enumerate(similar, 1):
+            sim_article = item['article']
+            score = item['similarity_score']
+            title = sim_article.get('title', 'Untitled')[:50]
+            category = sim_article.get('classification', {}).get('top_label', 'N/A')
+            
+            response += f"{i}. *{title}*\n"
+            response += f"   Category: {category}\n"
+            response += f"   Similarity: {score * 100:.1f}%\n"
+            response += f"   URL: {sim_article.get('url', 'N/A')[:60]}\n\n"
+        
+        await processing_msg.edit_text(response, parse_mode='Markdown', disable_web_page_preview=True)
+        
+    except Exception as e:
+        logger.error(f"Error finding similar articles: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+async def duplicates_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Find duplicate articles in the database."""
+    try:
+        processing_msg = await update.message.reply_text("🔍 Searching for duplicates...")
+        
+        # Find duplicates
+        duplicates = processor.find_all_duplicates(threshold=0.9)
+        
+        if not duplicates:
+            await processing_msg.edit_text("✅ No duplicate articles found in the database!")
+            return
+        
+        response = f"⚠️ *Duplicate Articles Found*\n\n"
+        response += f"Found {len(duplicates)} duplicate pair(s):\n\n"
+        
+        for i, dup in enumerate(duplicates[:5], 1):  # Limit to 5 pairs
+            art1 = dup['article1']
+            art2 = dup['article2']
+            similarity = dup['similarity']
+            
+            response += f"{i}. Similarity: {similarity * 100:.1f}%\n"
+            response += f"   • {art1['title'][:40]}\n"
+            response += f"   • {art2['title'][:40]}\n\n"
+        
+        if len(duplicates) > 5:
+            response += f"_... and {len(duplicates) - 5} more pairs_"
+        
+        await processing_msg.edit_text(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error finding duplicates: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
 def main():
@@ -116,11 +288,15 @@ def main():
     # Register handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("stats", stats_command))
+    application.add_handler(CommandHandler("cached", cached_command))
+    application.add_handler(CommandHandler("similar", similar_command))
+    application.add_handler(CommandHandler("duplicates", duplicates_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
     
     # Start the Bot
-    logger.info("Starting bot...")
-    print("Bot is running. Press Ctrl+C to stop.")
+    logger.info("Starting enhanced bot...")
+    print("Enhanced Bot is running. Press Ctrl+C to stop.")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

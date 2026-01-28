@@ -1,15 +1,36 @@
-# Article Classifier & Summarizer 📰
+# Article Classifier & Summarizer 📰✨
 
-A powerful news article classifier and summarizer that uses NLP to automatically scrape, classify, and generate summaries of news articles. Available as both a Telegram bot and Chrome extension.
+A powerful, feature-rich news article classifier and summarizer that uses advanced NLP to automatically scrape, classify, analyze, and generate insights from news articles. Available as a REST API, Telegram bot, and Chrome extension.
 
-## Features
+## ✨ Features
 
+### Core Features
 - **🔍 Article Scraping**: Automatically extract content from news article URLs
 - **🏷️ Topic Classification**: Classify articles into 10+ categories using zero-shot classification
 - **📝 Smart Summarization**: Generate concise summaries using transformer models
 - **🤖 Telegram Bot**: Interact via Telegram for easy mobile access
 - **🌐 Chrome Extension**: Analyze articles directly from your browser
 - **🔌 REST API**: Flask-based API for integration with other applications
+
+### 🚀 Advanced Features
+- **😊 Sentiment Analysis**: Detect emotional tone (positive, negative, neutral) and specific emotions
+- **🔑 Keyword Extraction**: Identify important keywords and key phrases
+- **🏷️ Named Entity Recognition**: Extract people, organizations, and locations
+- **⏱️ Reading Time**: Calculate estimated reading time
+- **⭐ Quality Score**: Assess article quality (0-100 scale)
+- **📊 Readability Analysis**: Flesch Reading Ease score and grade level
+- **💾 Database Caching**: Fast retrieval of previously processed articles
+- **📤 Export Functionality**: Export to JSON, CSV, Markdown, and HTML
+- **📈 Statistics & Analytics**: Track processing metrics and trends
+
+### 🔗 NEW: Similarity & Duplicate Detection
+- **Similar Article Discovery**: Find related articles using AI-powered semantic search
+- **Duplicate Detection**: Automatically identify duplicate or near-duplicate content
+- **Content Recommendations**: Get suggestions for related articles
+- **Article Clustering**: Group similar articles by topic
+- **Configurable Thresholds**: Adjust similarity sensitivity to your needs
+
+**📚 [View Detailed Features Guide](FEATURES.md) | [Similarity Feature Documentation](docs/SIMILARITY_FEATURE.md)**
 
 ## Supported Article Categories
 
