@@ -7,6 +7,7 @@ from src.summarizer import ArticleSummarizer
 from src.sentiment_analyzer import SentimentAnalyzer
 from src.keyword_extractor import KeywordExtractor
 from src.metadata_analyzer import MetadataAnalyzer
+from src.similarity_analyzer import SimilarityAnalyzer
 from src.database import ArticleDatabase
 from src.exporter import ArticleExporter
 from src.config import Config
@@ -34,6 +35,7 @@ class ArticleProcessor:
             self.sentiment_analyzer = SentimentAnalyzer()
             self.keyword_extractor = KeywordExtractor()
             self.metadata_analyzer = MetadataAnalyzer()
+            self.similarity_analyzer = SimilarityAnalyzer()
         
         # Database and export
         self.use_cache = use_cache
@@ -79,6 +81,10 @@ class ArticleProcessor:
             article = self.sentiment_analyzer.analyze_article(article)
             article = self.keyword_extractor.analyze_article(article)
             article = self.metadata_analyzer.analyze_article(article)
+            
+            # Generate embedding for similarity analysis
+            embedding = self.similarity_analyzer.generate_article_embedding(article)
+            article['embedding'] = embedding
         
         # Cache the result
         if self.use_cache:
@@ -164,6 +170,149 @@ class ArticleProcessor:
         if not self.use_cache:
             return 0
         return self.db.clear_old_articles(days)
+    
+    def find_similar_articles(
+        self,
+        article: Dict,
+        top_k: int = 5,
+        min_similarity: float = 0.5
+    ) -> List[Dict]:
+        """
+        Find similar articles to the given article.
+        
+        Args:
+            article: Article dictionary (must have embedding or will generate one)
+            top_k: Number of similar articles to return
+            min_similarity: Minimum similarity threshold (0-1)
+            
+        Returns:
+            List of similar articles with similarity scores
+        """
+        if not self.use_advanced_features:
+            return []
+        
+        # Get or generate embedding for the article
+        if 'embedding' not in article or article['embedding'] is None:
+            article['embedding'] = self.similarity_analyzer.generate_article_embedding(article)
+        
+        # Get all cached articles with embeddings
+        if self.use_cache:
+            cached_articles = self.db.get_all_articles_with_embeddings()
+        else:
+            return []
+        
+        # Find similar articles
+        similar = self.similarity_analyzer.find_similar_articles(
+            article,
+            cached_articles,
+            top_k=top_k,
+            min_similarity=min_similarity
+        )
+        
+        return similar
+    
+    def find_similar_by_url(
+        self,
+        url: str,
+        top_k: int = 5,
+        min_similarity: float = 0.5
+    ) -> List[Dict]:
+        """
+        Find similar articles by URL.
+        
+        Args:
+            url: URL of the article
+            top_k: Number of similar articles to return
+            min_similarity: Minimum similarity threshold
+            
+        Returns:
+            List of similar articles with similarity scores
+        """
+        # Process or get cached article
+        article = self.process_url(url)
+        if 'error' in article:
+            return []
+        
+        return self.find_similar_articles(article, top_k, min_similarity)
+    
+    def check_duplicate(
+        self,
+        article: Dict,
+        threshold: float = 0.9
+    ) -> Dict:
+        """
+        Check if an article is a duplicate of existing articles.
+        
+        Args:
+            article: Article dictionary
+            threshold: Similarity threshold for duplicate detection
+            
+        Returns:
+            Dictionary with duplicate information
+        """
+        if not self.use_advanced_features:
+            return {'is_duplicate': False, 'duplicates': []}
+        
+        similar = self.find_similar_articles(article, top_k=10, min_similarity=threshold)
+        
+        return {
+            'is_duplicate': len(similar) > 0,
+            'duplicate_count': len(similar),
+            'duplicates': [
+                {
+                    'title': s['article'].get('title'),
+                    'url': s['article'].get('url'),
+                    'similarity': s['similarity_score']
+                }
+                for s in similar
+            ]
+        }
+    
+    def find_all_duplicates(self, threshold: float = 0.9) -> List[Dict]:
+        """
+        Find all duplicate articles in the database.
+        
+        Args:
+            threshold: Similarity threshold for duplicate detection
+            
+        Returns:
+            List of duplicate pairs with similarity scores
+        """
+        if not self.use_cache or not self.use_advanced_features:
+            return []
+        
+        duplicates = self.db.find_duplicates(threshold)
+        
+        return [
+            {
+                'article1': {
+                    'title': dup[0].get('title'),
+                    'url': dup[0].get('url')
+                },
+                'article2': {
+                    'title': dup[1].get('title'),
+                    'url': dup[1].get('url')
+                },
+                'similarity': dup[2]
+            }
+            for dup in duplicates
+        ]
+    
+    def get_article_similarity_report(self, article: Dict) -> Dict:
+        """
+        Get comprehensive similarity report for an article.
+        
+        Args:
+            article: Article dictionary
+            
+        Returns:
+            Comprehensive similarity analysis
+        """
+        if not self.use_advanced_features or not self.use_cache:
+            return {}
+        
+        cached_articles = self.db.get_all_articles_with_embeddings()
+        return self.similarity_analyzer.analyze_article_similarity(article, cached_articles)
 
 
 def main():

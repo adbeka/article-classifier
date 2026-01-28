@@ -3,7 +3,8 @@ Database storage module for caching processed articles.
 """
 import sqlite3
 import json
-from typing import Dict, Optional, List
+import numpy as np
+from typing import Dict, Optional, List, Tuple
 from datetime import datetime, timedelta
 import hashlib
 from pathlib import Path
@@ -46,6 +47,7 @@ class ArticleDatabase:
                 sentiment_analysis TEXT,
                 keyword_analysis TEXT,
                 metadata_analysis TEXT,
+                embedding BLOB,
                 processed_at TEXT NOT NULL,
                 access_count INTEGER DEFAULT 1,
                 last_accessed TEXT NOT NULL
@@ -99,13 +101,18 @@ class ArticleDatabase:
         metadata_analysis = json.dumps(article.get('metadata_analysis', {}))
         authors = json.dumps(article.get('authors', []))
         
+        # Serialize embedding if present
+        embedding = None
+        if 'embedding' in article and article['embedding'] is not None:
+            embedding = article['embedding'].tobytes()
+        
         try:
             cursor.execute('''
                 INSERT INTO articles (
                     url, url_hash, title, text, authors, publish_date, top_image,
                     classification, summary, sentiment_analysis, keyword_analysis,
-                    metadata_analysis, processed_at, last_accessed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    metadata_analysis, embedding, processed_at, last_accessed
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 url,
                 url_hash,
@@ -119,6 +126,7 @@ class ArticleDatabase:
                 sentiment_analysis,
                 keyword_analysis,
                 metadata_analysis,
+                embedding,
                 now,
                 now
             ))
@@ -150,6 +158,11 @@ class ArticleDatabase:
         metadata_analysis = json.dumps(article.get('metadata_analysis', {}))
         authors = json.dumps(article.get('authors', []))
         
+        # Serialize embedding if present
+        embedding = None
+        if 'embedding' in article and article['embedding'] is not None:
+            embedding = article['embedding'].tobytes()
+        
         cursor.execute('''
             UPDATE articles SET
                 title = ?,
@@ -162,6 +175,7 @@ class ArticleDatabase:
                 sentiment_analysis = ?,
                 keyword_analysis = ?,
                 metadata_analysis = ?,
+                embedding = ?,
                 processed_at = ?,
                 access_count = access_count + 1,
                 last_accessed = ?
@@ -177,6 +191,7 @@ class ArticleDatabase:
             sentiment_analysis,
             keyword_analysis,
             metadata_analysis,
+            embedding,
             now,
             now,
             url_hash
@@ -231,6 +246,10 @@ class ArticleDatabase:
         article['sentiment_analysis'] = json.loads(article['sentiment_analysis'])
         article['keyword_analysis'] = json.loads(article['keyword_analysis'])
         article['metadata_analysis'] = json.loads(article['metadata_analysis'])
+        
+        # Deserialize embedding if present
+        if article.get('embedding'):
+            article['embedding'] = np.frombuffer(article['embedding'], dtype=np.float32)
         
         return article
     
@@ -340,6 +359,110 @@ class ArticleDatabase:
         self.conn.commit()
         
         return deleted_count
+    
+    def get_all_articles_with_embeddings(self) -> List[Dict[str, any]]:
+        """
+        Get all articles that have embeddings for similarity search.
+        
+        Returns:
+            List of article dictionaries with embeddings
+        """
+        cursor = self.conn.cursor()
+        cursor.execute('SELECT * FROM articles WHERE embedding IS NOT NULL')
+        rows = cursor.fetchall()
+        
+        articles = []
+        for row in rows:
+            article = dict(row)
+            article['authors'] = json.loads(article['authors'])
+            article['classification'] = json.loads(article['classification'])
+            article['sentiment_analysis'] = json.loads(article['sentiment_analysis'])
+            article['keyword_analysis'] = json.loads(article['keyword_analysis'])
+            article['metadata_analysis'] = json.loads(article['metadata_analysis'])
+            
+            # Deserialize embedding
+            if article.get('embedding'):
+                article['embedding'] = np.frombuffer(article['embedding'], dtype=np.float32)
+            
+            articles.append(article)
+        
+        return articles
+    
+    def find_similar_articles_by_embedding(
+        self,
+        query_embedding: np.ndarray,
+        top_k: int = 5,
+        min_similarity: float = 0.5
+    ) -> List[Tuple[Dict, float]]:
+        """
+        Find similar articles using embedding similarity (brute force).
+        Note: This is a simple implementation. For large databases, consider using
+        vector databases like FAISS, Milvus, or Pinecone.
+        
+        Args:
+            query_embedding: The embedding vector to search for
+            top_k: Number of similar articles to return
+            min_similarity: Minimum similarity threshold
+            
+        Returns:
+            List of tuples (article, similarity_score)
+        """
+        articles = self.get_all_articles_with_embeddings()
+        
+        if not articles:
+            return []
+        
+        similarities = []
+        for article in articles:
+            if article.get('embedding') is not None:
+                # Calculate cosine similarity
+                embedding = article['embedding']
+                dot_product = np.dot(query_embedding, embedding)
+                norm1 = np.linalg.norm(query_embedding)
+                norm2 = np.linalg.norm(embedding)
+                
+                if norm1 > 0 and norm2 > 0:
+                    similarity = dot_product / (norm1 * norm2)
+                    if similarity >= min_similarity:
+                        similarities.append((article, float(similarity)))
+        
+        # Sort by similarity and return top_k
+        similarities.sort(key=lambda x: x[1], reverse=True)
+        return similarities[:top_k]
+    
+    def find_duplicates(self, similarity_threshold: float = 0.9) -> List[Tuple[Dict, Dict, float]]:
+        """
+        Find potential duplicate articles in the database.
+        
+        Args:
+            similarity_threshold: Threshold for considering articles as duplicates
+            
+        Returns:
+            List of tuples (article1, article2, similarity_score)
+        """
+        articles = self.get_all_articles_with_embeddings()
+        
+        if len(articles) < 2:
+            return []
+        
+        duplicates = []
+        for i in range(len(articles)):
+            for j in range(i + 1, len(articles)):
+                emb1 = articles[i].get('embedding')
+                emb2 = articles[j].get('embedding')
+                
+                if emb1 is not None and emb2 is not None:
+                    # Calculate cosine similarity
+                    dot_product = np.dot(emb1, emb2)
+                    norm1 = np.linalg.norm(emb1)
+                    norm2 = np.linalg.norm(emb2)
+                    
+                    if norm1 > 0 and norm2 > 0:
+                        similarity = dot_product / (norm1 * norm2)
+                        if similarity >= similarity_threshold:
+                            duplicates.append((articles[i], articles[j], float(similarity)))
+        
+        return duplicates
     
     def close(self):
         """Close the database connection."""

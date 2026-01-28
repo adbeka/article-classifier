@@ -12,7 +12,7 @@ A powerful, feature-rich news article classifier and summarizer that uses advanc
 - **🌐 Chrome Extension**: Analyze articles directly from your browser
 - **🔌 REST API**: Flask-based API for integration with other applications
 
-### 🚀 New Advanced Features
+### 🚀 Advanced Features
 - **😊 Sentiment Analysis**: Detect emotional tone (positive, negative, neutral) and specific emotions
 - **🔑 Keyword Extraction**: Identify important keywords and key phrases
 - **🏷️ Named Entity Recognition**: Extract people, organizations, and locations
@@ -23,7 +23,14 @@ A powerful, feature-rich news article classifier and summarizer that uses advanc
 - **📤 Export Functionality**: Export to JSON, CSV, Markdown, and HTML
 - **📈 Statistics & Analytics**: Track processing metrics and trends
 
-**📚 [View Detailed Features Guide](FEATURES.md)**
+### 🔗 NEW: Similarity & Duplicate Detection
+- **Similar Article Discovery**: Find related articles using AI-powered semantic search
+- **Duplicate Detection**: Automatically identify duplicate or near-duplicate content
+- **Content Recommendations**: Get suggestions for related articles
+- **Article Clustering**: Group similar articles by topic
+- **Configurable Thresholds**: Adjust similarity sensitivity to your needs
+
+**📚 [View Detailed Features Guide](FEATURES.md) | [Similarity Feature Documentation](docs/SIMILARITY_FEATURE.md)**
 
 ## Supported Article Categories
 

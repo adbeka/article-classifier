@@ -9,6 +9,9 @@ flask-cors>=4.0.0
 newspaper3k>=0.2.8
 python-dotenv>=1.0.0
 
+# Similarity analysis
+sentence-transformers>=2.2.0
+
 # Testing
 pytest>=7.4.0
 

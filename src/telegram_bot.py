@@ -29,12 +29,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• 😊 Analyze sentiment\n"
         "• 🔑 Extract keywords\n"
         "• ⏱️ Calculate reading time\n"
-        "• ⭐ Assess quality\n\n"
+        "• ⭐ Assess quality\n"
+        "• 🔗 Find similar articles\n\n"
         "Commands:\n"
         "/start - Show this message\n"
         "/help - Show help information\n"
         "/stats - Show statistics\n"
-        "/cached - View recent cached articles\n\n"
+        "/cached - View recent cached articles\n"
+        "/similar <url> - Find similar articles\n"
+        "/duplicates - Find duplicate articles\n\n"
         "Just paste a URL to get started!"
     )
     await update.message.reply_text(welcome_message)
@@ -188,6 +191,90 @@ async def cached_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"❌ Error: {str(e)}")
 
 
+async def similar_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Find similar articles to a given URL."""
+    try:
+        # Check if URL is provided
+        if not context.args:
+            await update.message.reply_text(
+                "Please provide a URL.\nUsage: /similar <url>"
+            )
+            return
+        
+        url = context.args[0]
+        
+        if not (url.startswith('http://') or url.startswith('https://')):
+            await update.message.reply_text("Please provide a valid URL starting with http:// or https://")
+            return
+        
+        processing_msg = await update.message.reply_text("🔍 Finding similar articles...")
+        
+        # Find similar articles
+        similar = processor.find_similar_by_url(url, top_k=5, min_similarity=0.5)
+        
+        if not similar:
+            await processing_msg.edit_text("No similar articles found in the database.")
+            return
+        
+        # Get the query article info
+        article = processor.process_url(url)
+        
+        response = f"🔗 *Similar Articles*\n\n"
+        response += f"*Query:* {article.get('title', 'N/A')[:60]}\n\n"
+        response += f"Found {len(similar)} similar article(s):\n\n"
+        
+        for i, item in enumerate(similar, 1):
+            sim_article = item['article']
+            score = item['similarity_score']
+            title = sim_article.get('title', 'Untitled')[:50]
+            category = sim_article.get('classification', {}).get('top_label', 'N/A')
+            
+            response += f"{i}. *{title}*\n"
+            response += f"   Category: {category}\n"
+            response += f"   Similarity: {score * 100:.1f}%\n"
+            response += f"   URL: {sim_article.get('url', 'N/A')[:60]}\n\n"
+        
+        await processing_msg.edit_text(response, parse_mode='Markdown', disable_web_page_preview=True)
+        
+    except Exception as e:
+        logger.error(f"Error finding similar articles: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
+async def duplicates_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Find duplicate articles in the database."""
+    try:
+        processing_msg = await update.message.reply_text("🔍 Searching for duplicates...")
+        
+        # Find duplicates
+        duplicates = processor.find_all_duplicates(threshold=0.9)
+        
+        if not duplicates:
+            await processing_msg.edit_text("✅ No duplicate articles found in the database!")
+            return
+        
+        response = f"⚠️ *Duplicate Articles Found*\n\n"
+        response += f"Found {len(duplicates)} duplicate pair(s):\n\n"
+        
+        for i, dup in enumerate(duplicates[:5], 1):  # Limit to 5 pairs
+            art1 = dup['article1']
+            art2 = dup['article2']
+            similarity = dup['similarity']
+            
+            response += f"{i}. Similarity: {similarity * 100:.1f}%\n"
+            response += f"   • {art1['title'][:40]}\n"
+            response += f"   • {art2['title'][:40]}\n\n"
+        
+        if len(duplicates) > 5:
+            response += f"_... and {len(duplicates) - 5} more pairs_"
+        
+        await processing_msg.edit_text(response, parse_mode='Markdown')
+        
+    except Exception as e:
+        logger.error(f"Error finding duplicates: {str(e)}")
+        await update.message.reply_text(f"❌ Error: {str(e)}")
+
+
 def main():
     """Start the bot."""
     if not Config.TELEGRAM_BOT_TOKEN:
@@ -203,6 +290,8 @@ def main():
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CommandHandler("cached", cached_command))
+    application.add_handler(CommandHandler("similar", similar_command))
+    application.add_handler(CommandHandler("duplicates", duplicates_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, process_message))
     
     # Start the Bot
